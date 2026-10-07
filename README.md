@@ -408,6 +408,11 @@ tests/                    tests of the Python shell
 - Materials are evaluated at one temperature per run (`temperature:`); use
   `--temps` for tables. There is no temperature feedback within a run.
 
+## Licence
+
+MIT, see [LICENSE](LICENSE). The dependencies fetched at build time keep their own
+licences: AMGCL and yaml-cpp are both MIT.
+
 ## References
 
 - M. Simoncelli, N. Marzari, F. Mauri, *Unified theory of thermal transport in crystals and glasses*, Nat. Phys. 15, 809 (2019); *Wigner formulation of thermal transport in solids*, Phys. Rev. X 12, 041011 (2022); M. Simoncelli, F. Mauri, N. Marzari, npj Comput. Mater. 9, 106 (2023).
