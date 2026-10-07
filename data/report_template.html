@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ · stacktherm</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --series-1: #2a78d6; --series-2: #eb6834;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --series-1: #3987e5; --series-2: #d95926;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --series-1: #3987e5; --series-2: #d95926;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1080px; margin: 0 auto; padding: 28px 16px 56px; }
+h1 { font-size: 22px; margin: 0 0 4px; font-weight: 650; letter-spacing: -0.01em; }
+h2 { font-size: 15px; margin: 0 0 2px; font-weight: 650; }
+.sub { color: var(--ink-2); margin: 0 0 20px; }
+.note { color: var(--ink-2); font-size: 13px; margin: 0 0 14px; max-width: 72ch; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px;
+  padding: 18px 18px 16px; margin: 0 0 16px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px;
+  margin: 0 0 16px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px;
+  padding: 14px 16px; }
+.tile .v { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; }
+.tile .u { font-size: 13px; color: var(--ink-2); font-weight: 400; margin-left: 3px; }
+.tile .l { color: var(--ink-2); font-size: 12.5px; margin-top: 2px; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; color: var(--ink-2); font-size: 12.5px;
+  margin: 8px 0 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin-right: 6px; vertical-align: -1px; }
+.bars { display: grid; grid-template-columns: minmax(96px, 190px) 1fr 68px; column-gap: 10px;
+  row-gap: 3px; align-items: center; }
+.bars .name { color: var(--ink-2); font-size: 12.5px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; text-align: right; }
+.bars .track { height: 14px; display: flex; gap: 2px; border-left: 1px solid var(--axis);
+  cursor: default; }
+.bars .seg { height: 14px; min-width: 1px; }
+.bars .seg.a { background: var(--series-1); }
+.bars .seg.b { background: var(--series-2); }
+.bars .seg:last-child { border-radius: 0 4px 4px 0; }
+.bars .val { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.bars .row { display: contents; }
+.bars .row:hover .name { color: var(--ink); }
+.controls { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin: 6px 0 10px;
+  color: var(--ink-2); font-size: 13px; }
+.controls button { font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--axis); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.controls button[aria-pressed="true"] { background: var(--ink); color: var(--surface);
+  border-color: var(--ink); }
+.controls input[type=range] { width: min(320px, 60vw); accent-color: var(--series-1); }
+.heat { position: relative; }
+.heat canvas { width: 100%; display: block; border: 1px solid var(--ring); border-radius: 6px;
+  image-rendering: pixelated; cursor: crosshair; }
+.scale { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--ink-2);
+  font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.scale .ramp { flex: 0 0 180px; height: 10px; border-radius: 3px; border: 1px solid var(--ring); }
+.readout { min-height: 20px; margin-top: 6px; font-size: 13px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; }
+.tip { position: fixed; pointer-events: none; z-index: 10; background: var(--surface);
+  color: var(--ink); border: 1px solid var(--axis); border-radius: 8px; padding: 8px 10px;
+  font-size: 12.5px; box-shadow: 0 4px 16px rgba(0,0,0,0.14); display: none; max-width: 280px; }
+.tip b { display: block; margin-bottom: 2px; }
+.tip span { color: var(--ink-2); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; }
+th:first-child, td:first-child, td.t, th.t { text-align: left; }
+td.w { white-space: normal; min-width: 220px; color: var(--ink-2); }
+details summary { cursor: pointer; font-weight: 650; font-size: 15px; }
+details[open] summary { margin-bottom: 10px; }
+.pill { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--axis);
+  color: var(--ink-2); }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card">
+    <h2>Where the thermal resistance sits</h2>
+    <p class="note">Through-plane resistance of every layer, top of the stack first, from plane-averaged
+      temperatures in a unit-drop solve. The terms add up to the total exactly.</p>
+    <div class="legend"><span><i style="background:var(--series-1)"></i>layer</span>
+      <span><i style="background:var(--series-2)"></i>interface above the layer</span></div>
+    <div class="bars" id="bars"></div>
+  </section>
+
+  <section class="card" id="fieldCard">
+    <h2>Temperature field</h2>
+    <p class="note" id="fieldNote"></p>
+    <div class="controls">
+      <span role="group" aria-label="slice plane">
+        <button id="planeXZ" aria-pressed="true">x–z slice</button>
+        <button id="planeYZ" aria-pressed="false">y–z slice</button>
+      </span>
+      <label>position <input type="range" id="slice" min="0" max="0" value="0"></label>
+      <span id="sliceLabel"></span>
+    </div>
+    <div class="heat"><canvas id="heat" width="10" height="10"></canvas></div>
+    <div class="scale"><span id="tLo"></span><div class="ramp" id="ramp"></div><span id="tHi"></span>
+      <span id="rampNote"></span></div>
+    <div class="readout" id="readout">Hover the slice to read a temperature.</div>
+  </section>
+
+  <section class="card">
+    <h2>Effective layer properties</h2>
+    <p class="note">In-situ values for package-scale models. “kz mix” is the area-weighted rule of mixtures for the
+      layer on its own; where it is far above kz, heat cannot reach the conductor without spreading
+      through its neighbours. “kz folded” includes the interface above the layer.</p>
+    <div class="scroll"><table id="layerTable"></table></div>
+  </section>
+
+  <section class="card"><details open><summary>Material inputs computed for this stack</summary>
+    <div class="scroll"><table id="matTable"></table></div></details></section>
+
+  <section class="card"><details><summary>Interface resistances and their provenance</summary>
+    <div class="scroll"><table id="ifaceTable"></table></div></details></section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(function () {
+  const D = JSON.parse(document.getElementById('data').textContent);
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, n) => (v === null || v === undefined || !isFinite(v)) ? '–'
+    : Number(v).toLocaleString('en-US', { maximumSignificantDigits: n || 3 });
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const mm2 = (r) => r * 1e6;  // m2K/W -> mm2K/W
+
+  $('title').textContent = D.name;
+  $('subtitle').textContent = `Unit cell ${fmt(D.cell_m[0] * 1e6, 4)} × ${fmt(D.cell_m[1] * 1e6, 4)} µm, `
+    + `${fmt(D.thickness_m * 1e6, 4)} µm tall · ${D.grid.nx} × ${D.grid.ny} × ${D.grid.nz} cells `
+    + `(${D.grid.unknowns.toLocaleString('en-US')} unknowns) · ${fmt(D.wall_s, 3)} s · materials at ${fmt(D.temperature_K, 4)} K`;
+
+  // ---- stat tiles
+  const tiles = [
+    [fmt(mm2(D.effective.R_total_m2K_W), 4), 'mm²K/W', 'through-plane resistance, face to face'],
+    [fmt(D.effective.kz_W_mK, 3), 'W/m/K', 'effective kz of the whole cell'],
+    [fmt(D.effective.kx_W_mK, 3) + ' / ' + fmt(D.effective.ky_W_mK, 3), 'W/m/K', 'effective kx / ky'],
+  ];
+  if (D.operating) {
+    const o = D.operating;
+    const rise = o.T_max_K - Math.min(...o.layers.map((l) => l.T_min_K));
+    tiles.push([fmt(o.T_max_K, 5), 'K', `hottest point at ${fmt(o.flux_W_m2 / 1e4, 3)} W/cm²`]);
+    tiles.push([fmt(rise, 3), 'K', 'temperature spread inside the cell']);
+  }
+  $('tiles').innerHTML = tiles.map((t) =>
+    `<div class="tile"><div class="v">${t[0]}<span class="u">${t[1]}</span></div><div class="l">${t[2]}</div></div>`).join('');
+
+  // ---- tooltip
+  const tip = $('tip');
+  function showTip(html, ev) {
+    tip.innerHTML = html; tip.style.display = 'block';
+    const w = tip.offsetWidth, h = tip.offsetHeight;
+    let x = ev.clientX + 14, y = ev.clientY + 14;
+    if (x + w > innerWidth - 8) x = ev.clientX - w - 14;
+    if (y + h > innerHeight - 8) y = ev.clientY - h - 14;
+    tip.style.left = Math.max(8, x) + 'px'; tip.style.top = Math.max(8, y) + 'px';
+  }
+  const hideTip = () => { tip.style.display = 'none'; };
+
+  // ---- resistance bars (top of the stack first)
+  const layers = D.layers.slice().reverse();
+  const rmax = Math.max(...layers.map((l) => l.R_m2K_W + l.R_interface_above_m2K_W)) || 1;
+  const rtot = D.effective.R_total_m2K_W;
+  const bars = $('bars');
+  layers.forEach((l) => {
+    const row = document.createElement('div'); row.className = 'row';
+    const a = 100 * l.R_m2K_W / rmax, b = 100 * l.R_interface_above_m2K_W / rmax;
+    row.innerHTML = `<div class="name" title="${esc(l.layer)}">${esc(l.layer)}</div>`
+      + `<div class="track"><div class="seg a" style="width:${a}%"></div>`
+      + (b > 0 ? `<div class="seg b" style="width:${b}%"></div>` : '') + `</div>`
+      + `<div class="val">${fmt(mm2(l.R_m2K_W + l.R_interface_above_m2K_W), 3)}</div>`;
+    const html = `<b>${esc(l.layer)}</b><span>thickness</span> ${fmt(l.thickness_m * 1e9, 4)} nm<br>`
+      + `<span>layer</span> ${fmt(mm2(l.R_m2K_W), 3)} mm²K/W<br>`
+      + `<span>interface above</span> ${fmt(mm2(l.R_interface_above_m2K_W), 3)} mm²K/W<br>`
+      + `<span>share of total</span> ${fmt(100 * (l.R_m2K_W + l.R_interface_above_m2K_W) / rtot, 3)} %<br>`
+      + `<span>kz in situ</span> ${fmt(l.kz_W_mK, 3)} W/m/K`;
+    row.addEventListener('mousemove', (ev) => showTip(html, ev));
+    row.addEventListener('mouseleave', hideTip);
+    bars.appendChild(row);
+  });
+  const head = document.createElement('div'); head.className = 'row';
+  head.innerHTML = '<div></div><div></div><div class="val" style="color:var(--muted)">mm²K/W</div>';
+  bars.insertBefore(head, bars.firstChild);
+
+  // ---- tables
+  function table(id, cols, rows) {
+    $(id).innerHTML = '<thead><tr>' + cols.map((c) => `<th class="${c[2] || ''}">${c[0]}</th>`).join('')
+      + '</tr></thead><tbody>' + rows.map((r) => '<tr>' + cols.map((c) =>
+        `<td class="${c[2] || ''}">${c[1](r)}</td>`).join('') + '</tr>').join('') + '</tbody>';
+  }
+  table('layerTable', [
+    ['layer', (r) => esc(r.layer), 't'], ['t (nm)', (r) => fmt(r.thickness_m * 1e9, 5)],
+    ['kx', (r) => fmt(r.kx_W_mK)], ['ky', (r) => fmt(r.ky_W_mK)], ['kz', (r) => fmt(r.kz_W_mK)],
+    ['kz mix', (r) => fmt(r.kz_rule_of_mixtures_W_mK)], ['kz folded', (r) => fmt(r.kz_folded_W_mK)],
+    ['R (mm²K/W)', (r) => fmt(mm2(r.R_m2K_W))], ['R interface above', (r) => fmt(mm2(r.R_interface_above_m2K_W))],
+    ['ρc (MJ/m³K)', (r) => fmt(r.rhoc_J_m3K / 1e6)],
+  ], layers);
+  table('matTable', [
+    ['material', (r) => esc(r.material), 't'], ['layer', (r) => esc(r.layer), 't'],
+    ['area fraction', (r) => fmt(r.area_fraction)], ['kx', (r) => fmt(r.kx_W_mK)],
+    ['ky', (r) => fmt(r.ky_W_mK)], ['kz', (r) => fmt(r.kz_W_mK)], ['model', (r) => esc(r.model), 't w'],
+  ], D.materials.filter((m) => m.material !== 'homogenised'));
+  table('ifaceTable', [
+    ['between', (r) => esc(r.a) + ' · ' + esc(r.b), 't'], ['face', (r) => r.orientation, 't'],
+    ['R (m²K/GW)', (r) => fmt(r.R_m2K_W * 1e9)], ['TBC (MW/m²K)', (r) => fmt(1e-6 / r.R_m2K_W)],
+    ['provenance', (r) => `<span class="pill">${esc(r.provenance)}</span>`, 't'],
+    ['source', (r) => esc(r.source || ''), 't w'],
+  ], D.interfaces);
+
+  // ---- temperature slice
+  const F = D.field;
+  if (!F) { $('fieldCard').style.display = 'none'; return; }
+  const [nz, ny, nx] = F.shape;
+  const bin = atob(F.data);
+  const q = new Uint16Array(bin.length / 2);
+  for (let i = 0; i < q.length; i++) q[i] = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8);
+  const RAMP = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5',
+    '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b']
+    .map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)));
+  const isDark = () => getComputedStyle(document.documentElement).colorScheme.includes('dark');
+  function color(t) {  // t in 0..1, hot = far from the surface colour
+    const u = (isDark() ? 1 - t : t) * (RAMP.length - 1), i = Math.min(RAMP.length - 2, Math.floor(u)), f = u - i;
+    return RAMP[i].map((c, k) => Math.round(c + (RAMP[i + 1][k] - c) * f));
+  }
+  const cv = $('heat'), ctx = cv.getContext('2d');
+  let plane = 'xz', pos = 0;
+  const ROW = Math.max(2, Math.min(6, Math.round(420 / nz)));
+  function draw() {
+    const nu = plane === 'xz' ? nx : ny;
+    cv.width = nu; cv.height = nz;
+    cv.style.height = (nz * ROW) + 'px';
+    const img = ctx.createImageData(nu, nz);
+    for (let k = 0; k < nz; k++) {
+      for (let u = 0; u < nu; u++) {
+        const idx = plane === 'xz' ? (k * ny + pos) * nx + u : (k * ny + u) * nx + pos;
+        const c = color(q[idx] / 65535), p = 4 * ((nz - 1 - k) * nu + u);
+        img.data[p] = c[0]; img.data[p + 1] = c[1]; img.data[p + 2] = c[2]; img.data[p + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const coord = plane === 'xz' ? F.y_nm[pos] : F.x_nm[pos];
+    $('sliceLabel').textContent = (plane === 'xz' ? 'y = ' : 'x = ') + fmt(coord, 4) + ' nm';
+    const stops = [0, 0.25, 0.5, 0.75, 1].map((t) => `rgb(${color(t).join(',')}) ${t * 100}%`);
+    $('ramp').style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+    $('rampNote').textContent = `· ${isDark() ? 'lighter' : 'darker'} is hotter · vertical axis is not to scale `
+      + '(every mesh row has equal height)';
+  }
+  function setPlane(p) {
+    plane = p; const n = p === 'xz' ? ny : nx;
+    $('slice').max = n - 1; pos = Math.min(pos, n - 1); $('slice').value = pos;
+    $('planeXZ').setAttribute('aria-pressed', p === 'xz'); $('planeYZ').setAttribute('aria-pressed', p === 'yz');
+    draw();
+  }
+  $('planeXZ').onclick = () => setPlane('xz');
+  $('planeYZ').onclick = () => setPlane('yz');
+  $('slice').oninput = (e) => { pos = +e.target.value; draw(); };
+  $('tLo').textContent = fmt(F.tmin, 6) + ' K';
+  $('tHi').textContent = fmt(F.tmax, 6) + ' K';
+  $('fieldNote').textContent = `Operating point: ${fmt(D.operating.flux_W_m2 / 1e4, 3)} W/cm² dissipated in the cell, `
+    + `energy balance closed to ${D.operating.energy_imbalance.toExponential(1)}. `
+    + `Hottest point ${fmt(D.operating.T_max_K, 6)} K.`;
+  cv.addEventListener('mousemove', (ev) => {
+    const r = cv.getBoundingClientRect(), nu = plane === 'xz' ? nx : ny;
+    const u = Math.min(nu - 1, Math.max(0, Math.floor((ev.clientX - r.left) / r.width * nu)));
+    const k = nz - 1 - Math.min(nz - 1, Math.max(0, Math.floor((ev.clientY - r.top) / r.height * nz)));
+    const idx = plane === 'xz' ? (k * ny + pos) * nx + u : (k * ny + u) * nx + pos;
+    const T = F.tmin + q[idx] / 65535 * (F.tmax - F.tmin);
+    const lat = plane === 'xz' ? F.x_nm[u] : F.y_nm[u];
+    $('readout').innerHTML = `<b style="color:var(--ink)">${fmt(T, 7)} K</b> · ${esc(F.layer_names[F.layer[k]])} · `
+      + `${plane === 'xz' ? 'x' : 'y'} = ${fmt(lat, 4)} nm, z = ${fmt(F.z_nm[k], 5)} nm`;
+  });
+  cv.addEventListener('mouseleave', () => { $('readout').textContent = 'Hover the slice to read a temperature.'; });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  pos = Math.floor(ny / 2);
+  setPlane('xz');
+})();
+</script>
+</body>
+</html>

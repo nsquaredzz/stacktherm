@@ -1,0 +1,77 @@
+# Published measurements used by `stacktherm validate`.
+#
+# how: text   = the number is stated in the paper's text or a table
+#      figure = the number was read off a published plot (digitisation error of
+#               a few percent on top of the experimental uncertainty)
+#
+# Nothing here is used to tune a model.  The silicon model is calibrated on the
+# bulk k(T) curve only; the BEOL case takes the dielectric conductivity and the
+# Cu/dielectric boundary resistance that the authors extracted from their own
+# data, so it is a consistency check of the 3D solver rather than a blind test.
+
+silicon_films:
+  description: In-plane thermal conductivity of single-crystal Si films and membranes near 300 K
+  sets:
+    - source: "Cuffe et al., Phys. Rev. B 91, 245423 (2015), Fig. 2b (free-standing membranes, transient thermal grating)"
+      how: figure
+      points:  # [thickness nm, k W/m/K, uncertainty]
+        - [15, 20, 3]
+        - [17.5, 24, 3]
+        - [30, 34, 4]
+        - [47, 43, 3]
+        - [99, 58, 4]
+        - [143, 61, 4]
+        - [194, 77, 4]
+        - [400, 88, 6]
+        - [759, 102, 6]
+        - [984, 101, 5]
+        - [1518, 110, 6]
+    - source: "Chavez-Angel et al., APL Mater. 2, 012113 (2014) (free-standing membrane, Raman thermometry)"
+      how: text
+      points:
+        - [9, 9, 2]
+    - source: "Ju & Goodson, Appl. Phys. Lett. 74, 3005 (1999), Fig. 2 (SOI device layers)"
+      how: figure
+      note: "Early SOI data; they lie above later membrane measurements and first-principles theory."
+      points:
+        - [78, 77, 15]
+        - [145, 86, 15]
+        - [240, 95, 15]
+
+beol_layers:
+  description: Layer-resolved cross-plane conductivity of M1-M5 in a commercial 22 nm node chip (TDTR)
+  source: "Huang, Sun, Jia, Wang & Cheng, arXiv:2609.20379 (2026), Figs. 5c, 6c, 8d"
+  reported:  # from the paper
+    tbr_cu_dielectric: 2.0e-8  # m2K/W, "Die./Cu TBR ... This work ~20" m2K/GW, includes the Ta barrier (Fig. 8d)
+    layers:  # Cu volume fraction (Fig. 5c table), dielectric k (Fig. 8d table), measured k with 5x and 20x objective (Fig. 6c, read from the plot)
+      - {name: M1, cu_fraction: 0.18, k_dielectric: 1.5,  k_5x: 1.62, err_5x: 0.40, k_20x: 1.35, err_20x: 0.33}
+      - {name: M2, cu_fraction: 0.16, k_dielectric: 0.95, k_5x: 1.17, err_5x: 0.29, k_20x: 0.99, err_20x: 0.25}
+      - {name: M3, cu_fraction: 0.20, k_dielectric: 0.95, k_5x: 1.10, err_5x: 0.27, k_20x: 1.10, err_20x: 0.27}
+      - {name: M4, cu_fraction: 0.22, k_dielectric: 0.95, k_5x: 1.18, err_5x: 0.30, k_20x: 1.06, err_20x: 0.27}
+      - {name: M5, cu_fraction: 0.23, k_dielectric: 0.95, k_5x: 1.01, err_5x: 0.25, k_20x: 0.73, err_20x: 0.18}
+  assumed:  # not reported numerically; estimated here and varied in the check
+    h_metal_nm: 95     # line height, from the 50 nm scale bar of the TEM in Fig. 5b
+    h_total_nm: 165    # line + via-level height, same image
+    linewidth_nm: 60   # the paper only says "sub-100 nm"
+    linewidth_range_nm: [40, 100]
+
+vitreous_silica:
+  description: Thermal conductivity of bulk vitreous silica, W/m/K
+  points:
+    - {T: 300, k: 1.38, how: text,
+       source: "fused silica at room temperature; the value used for SiOx by Zhang et al., arXiv:2601.03106 (2026)"}
+  # Recalled from the fused-silica row of a standard heat-transfer handbook table and
+  # NOT re-fetched for this work: shown for the temperature trend, excluded from the verdict.
+  unverified:
+    - {T: 100, k: 0.69}
+    - {T: 200, k: 1.14}
+    - {T: 400, k: 1.51}
+    - {T: 600, k: 1.75}
+
+interfaces:
+  description: Thermal boundary conductance near 300 K, MW/m2K
+  points:
+    - {pair: [Si, SiO2], tbc: 600, bound: lower, source: "Kimling et al., Phys. Rev. B 95, 184305 (2017)"}
+    - {pair: [Cu, SiO2], tbc: 90, err: 15, source: "O'Brien et al., quoted in Kimling et al. (2017)"}
+    - {pair: [Al, SiO2], tbc: 117, source: "Zhang et al., arXiv:2601.03106 (2026)"}
+    - {pair: [SiO2, SiO2], tbc: 150, bound: lower, source: "bonded SiOx-SiOx, Zhang et al., arXiv:2601.03106 (2026)"}

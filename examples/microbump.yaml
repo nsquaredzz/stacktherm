@@ -1,0 +1,73 @@
+# The same two dies as hybrid_bond.yaml, joined by Cu-pillar / SnAg microbumps
+# at 40 um pitch with underfill.  The unit cell is one bump, forty times wider
+# than the hybrid-bond cell, so every transistor and wiring group is lumped into
+# a single anisotropic layer by its own nanometre-scale cell problem.
+
+name: microbump-40um
+cell: [40 um, 40 um]
+temperature: 358 K
+resolution: {n_xy: 40, n_z: 4}
+
+boundary:
+  top: {type: convection, h: 5.0e4, T: 318 K}
+  bottom: {type: adiabatic}
+
+interfaces:
+  "W|SiO2": 100 MW/m2K          # assumed, same as the library default
+  "Cu|SnAg": 1000 MW/m2K        # assumed: metallurgical joint, electrons carry the heat
+
+definitions:
+  feol: &feol
+    type: substack
+    lump: true
+    cell: [48 nm, 24 nm]
+    layers:
+      - {name: fins, type: lines, material: Si, matrix: SiO2, width: 7 nm, pitch: 24 nm,
+         direction: x, thickness: 50 nm, heat: {flux: 50 W/cm2}}
+      - {name: contacts, type: posts, material: W, matrix: SiO2, size: 14 nm,
+         thickness: 40 nm, barrier: {thickness: 2 nm}}
+
+  beol_fine: &beol_fine
+    type: substack
+    lump: true
+    cell: [64 nm, 64 nm]
+    layers:
+      - {name: M1, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: x, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V1, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.25,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: M2, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: y, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V2, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.75,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: M3, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: x, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V3, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.25,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+
+  beol_coarse: &beol_coarse
+    type: substack
+    lump: true
+    cell: [160 nm, 160 nm]
+    layers:
+      - {name: M4, type: lines, material: Cu, matrix: SiCOH, width: 40 nm, pitch: 80 nm,
+         direction: y, thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: V4, type: posts, material: Cu, matrix: SiCOH, size: 40 nm, offset: 0.25,
+         thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: M5, type: lines, material: Cu, matrix: SiCOH, width: 40 nm, pitch: 80 nm,
+         direction: x, thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: V5, type: posts, material: Cu, matrix: SiCOH, size: 40 nm, offset: 0.75,
+         thickness: 80 nm, barrier: {thickness: 3 nm}}
+
+layers:   # bottom to top
+  - {name: si-bottom, type: film, material: Si, thickness: 50 um}
+  - {<<: *feol, name: feol-b}
+  - {<<: *beol_fine, name: beol-fine-b}
+  - {<<: *beol_coarse, name: beol-coarse-b}
+  - {name: pillar-b, type: posts, material: Cu, matrix: Underfill, diameter: 20 um, thickness: 5 um}
+  - {name: solder, type: posts, material: SnAg, matrix: Underfill, diameter: 20 um, thickness: 8 um}
+  - {name: pillar-t, type: posts, material: Cu, matrix: Underfill, diameter: 20 um, thickness: 7 um}
+  - {<<: *beol_coarse, name: beol-coarse-t, flip: true}
+  - {<<: *beol_fine, name: beol-fine-t, flip: true}
+  - {<<: *feol, name: feol-t, flip: true}
+  - {name: si-top, type: film, material: Si, thickness: 50 um}

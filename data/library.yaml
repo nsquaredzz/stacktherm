@@ -1,0 +1,67 @@
+# Built-in material data.  Every entry carries its provenance.  Entries whose
+# source starts with "estimate" are placeholders of the right magnitude, not
+# measurements; they are the first things to replace with your own process data.
+#
+# Size-dependent materials (Cu, W, Co, Ru, Al, Mo and Si) are not listed here:
+# their conductivity is computed by stacktherm/materials/metals.py and phonons.py.
+
+solids:
+  SiO2:
+    {k: 1.38, density: 2200, cp: 745,
+     source: "thermal oxide / fused silica; value used for SiOx by Zhang et al., arXiv:2601.03106 (2026)"}
+  SiO2_PECVD:
+    {k: 1.15, density: 2200, cp: 745,
+     source: "3-omega measurement reported by imec, 'Mitigating the thermal bottleneck in advanced interconnects'"}
+  SiCOH:
+    {k: 0.54, density: 1300, cp: 900,
+     source: "BEOL dielectric value used by Wakil, Colgan & Chen, IEEE Trans. CPMT 1, 1007 (2011); density and cp are estimates"}
+  SiN:
+    {k: 1.5, density: 2800, cp: 700, source: "estimate: PECVD nitride, literature range roughly 0.7-2"}
+  SiCN:
+    {k: 0.8, density: 2000, cp: 800, source: "estimate: etch-stop / bond dielectric, no measurement in the library"}
+  Underfill:
+    {k: 0.5, density: 1700, cp: 1000,
+     source: "estimate: filled epoxy; Wakil et al. (2011) swept 0.4-1 W/m/K"}
+  SnAg:
+    {k: 57, density: 7400, cp: 220,
+     source: "estimate: handbook Sn-Ag solder; Wakil et al. (2011) assumed 36 W/m/K for micro-C4 joints"}
+  Ni:        {k: 90.7, density: 8900, cp: 444, source: "handbook"}
+  Polyimide: {k: 0.2, density: 1420, cp: 1090, source: "estimate: polymer fill, 0.2 W/m/K as in Han & Kawano (A*STAR)"}
+  Air:       {k: 0.026, density: 1.16, cp: 1007, source: "handbook"}
+
+# Materials whose conductivity is computed from an atomistic model with the
+# Wigner formulation of heat transport (stacktherm/materials/wigner.py).  The
+# value follows the run temperature.  `stacktherm wigner` shows the calculation.
+wigner:
+  SiO2_wigner: {models: [a-SiO2-648, a-SiO2-648-s2], base: SiO2, density: 2200, cp: 745}
+
+# Scattering parameters of the Fuchs-Sondheimer / Mayadas-Shatzkes model.
+# p = 0: fully diffuse surfaces, as found for sub-50 nm damascene Cu by Graham
+# et al., Appl. Phys. Lett. 96, 042116 (2010).  R is an assumed typical value.
+metal_scattering:
+  Cu: {p: 0.0, R: 0.3}
+
+# Thermal boundary conductance of specific material pairs near 300 K.
+interfaces:
+  - pair: [Si, SiO2]
+    tbc: 600 MW/m2K
+    source: "lower limit, Kimling et al., Phys. Rev. B 95, 184305 (2017)"
+  - pair: [Cu, SiO2]
+    tbc: 90 MW/m2K
+    source: "untreated Cu/SiO2, 90 +/- 15, O'Brien et al. as quoted by Kimling et al. (2017)"
+  - pair: [Al, SiO2]
+    tbc: 117 MW/m2K
+    source: "Al/SiOx by TDTR, Zhang et al., arXiv:2601.03106 (2026)"
+  - pair: [Cu, SiCOH]
+    tbc: 50 MW/m2K
+    source: "effective Cu/low-k value including the Ta barrier (~20 m2K/GW), fitted to TDTR of a 22 nm node BEOL by Huang et al., arXiv:2609.20379 (2026)"
+
+# Bonded SiOx-SiOx interfaces: Zhang et al. (2026) report a lower limit of
+# 150 MW/m2K.  Bond planes are declared in the stack file with an `interface`
+# entry, so the value is not applied implicitly here.
+
+# Used for any pair without an entry above.  fallback: "assumed" applies this
+# value; "dmm" uses the diffuse mismatch model where acoustic data exist (it
+# overestimates weakly bonded metal/oxide interfaces by up to an order of
+# magnitude, see `stacktherm validate`).
+default_interface: {tbc: 100 MW/m2K, fallback: assumed}

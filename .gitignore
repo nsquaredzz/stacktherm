@@ -1,0 +1,10 @@
+.venv/
+out/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.claude/
+.DS_Store
+build/
+third_party/
+*.so

@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>stacktherm studio</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--page); color: var(--ink);
+  font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header.top { display: flex; align-items: center; gap: 18px; padding: 10px 16px;
+  border-bottom: 1px solid var(--ring); background: var(--surface); position: sticky; top: 0; z-index: 5; }
+.brand { font-weight: 650; font-size: 15px; letter-spacing: -0.01em; }
+.brand span { color: var(--ink-2); font-weight: 400; }
+nav { display: flex; gap: 4px; }
+button { font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--axis);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+button[aria-pressed="true"], button[aria-selected="true"] { background: var(--ink); color: var(--surface);
+  border-color: var(--ink); }
+.status { margin-left: auto; color: var(--ink-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 14px; padding: 14px 16px 40px;
+  max-width: 1500px; margin: 0 auto; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.panel, .card, .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; }
+.panel { padding: 14px; align-self: start; position: sticky; top: 58px;
+  max-height: calc(100vh - 72px); overflow-y: auto; }
+@media (max-width: 860px) { .panel { position: static; max-height: none; } }
+.panel h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
+  margin: 16px 0 8px; font-weight: 600; }
+.seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.blurb { color: var(--ink-2); font-size: 12.5px; margin: 10px 0 4px; }
+.ctl { margin: 9px 0; }
+.ctl label { display: flex; justify-content: space-between; gap: 8px; color: var(--ink-2); font-size: 12.5px; }
+.ctl label b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ctl input[type=range] { width: 100%; accent-color: var(--s1); margin: 3px 0 0; }
+.ctl select { width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--axis); border-radius: 6px; padding: 4px 6px; margin-top: 3px; }
+.stage { min-width: 0; }
+.canvasWrap { position: relative; height: min(62vh, 620px); min-height: 380px; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--ring); background: var(--surface); }
+#gl { width: 100%; height: 100%; display: block; }
+.busy { position: absolute; top: 10px; right: 12px; font-size: 12.5px; color: var(--ink-2);
+  background: var(--surface); border: 1px solid var(--axis); border-radius: 999px; padding: 2px 10px; display: none; }
+.hud { position: absolute; left: 12px; top: 10px; font-size: 12.5px; color: var(--ink-2);
+  font-variant-numeric: tabular-nums; pointer-events: none; max-width: 70%; }
+.hud b { color: var(--ink); }
+.scale { position: absolute; left: 12px; bottom: 10px; display: flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.scale .ramp { width: 170px; height: 10px; border-radius: 3px; border: 1px solid var(--ring); }
+.hint { position: absolute; right: 12px; bottom: 10px; font-size: 12px; color: var(--muted); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 12px 0; }
+.tile { padding: 12px 14px; }
+.tile .v { font-size: 22px; font-weight: 650; letter-spacing: -0.01em; }
+.tile .u { font-size: 12.5px; color: var(--ink-2); font-weight: 400; margin-left: 3px; }
+.tile .l { color: var(--ink-2); font-size: 12.5px; }
+.tile .s { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.card { padding: 14px 16px; margin: 0 0 12px; }
+.card h2 { font-size: 14.5px; margin: 0 0 4px; font-weight: 650; }
+.card p.note { color: var(--ink-2); font-size: 12.5px; margin: 0 0 10px; max-width: 78ch; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums; white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; }
+th:first-child, td:first-child, .t { text-align: left; }
+td.w { white-space: normal; color: var(--ink-2); min-width: 200px; }
+.warn { border: 1px solid var(--axis); border-radius: 8px; padding: 8px 10px; margin: 0 0 12px;
+  font-size: 12.5px; color: var(--ink); }
+.matgrid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; padding: 14px 16px 40px;
+  max-width: 1300px; margin: 0 auto; }
+@media (max-width: 860px) { .matgrid { grid-template-columns: 1fr; } }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; overflow: visible; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; color: var(--ink-2); font-size: 12.5px; margin: 4px 0 6px; }
+.legend i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; margin-right: 6px; vertical-align: 3px; }
+.legend i.dot { width: 8px; height: 8px; border: 1.5px solid var(--ink); border-radius: 50%; vertical-align: -1px; }
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--axis); border-radius: 8px; padding: 7px 10px; font-size: 12.5px; display: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.16); font-variant-numeric: tabular-nums; }
+.tip .h { color: var(--ink-2); margin-bottom: 3px; }
+.tip .r { display: flex; gap: 8px; align-items: center; }
+.tip .r i { width: 12px; border-top: 2px solid; }
+.tip .r b { min-width: 46px; text-align: right; }
+.tip .r span { color: var(--ink-2); }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 12.5px; margin-top: 8px; }
+textarea.yaml { width: 100%; height: 300px; resize: vertical; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink); background: var(--page); border: 1px solid var(--axis); border-radius: 6px; padding: 8px; tab-size: 2;
+  white-space: pre; overflow: auto; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 8px 0; color: var(--ink-2); font-size: 12.5px; }
+button.primary { background: var(--s1); border-color: var(--s1); color: #fff; font-weight: 600; }
+a.dl { display: inline-block; font-size: 12.5px; color: var(--ink); border: 1px solid var(--axis); border-radius: 6px;
+  padding: 4px 10px; margin: 0 6px 6px 0; text-decoration: none; }
+[hidden] { display: none !important; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+               "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/" } }
+</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">stacktherm <span>studio</span></div>
+  <nav role="tablist">
+    <button id="tab3d" role="tab" aria-selected="true">3D cell</button>
+    <button id="tabMat" role="tab" aria-selected="false">Materials engine</button>
+    <button id="tabWig" role="tab" aria-selected="false">Wigner engine</button>
+  </nav>
+  <div class="status" id="status"></div>
+</header>
+
+<main id="page3d" class="grid">
+  <aside class="panel">
+    <div class="seg" id="scenes"></div>
+    <p class="blurb" id="blurb"></p>
+    <div id="params"></div>
+    <h3>View</h3>
+    <div class="ctl"><label>Colour by</label><div class="seg" id="fieldSeg">
+      <button data-v="T" aria-pressed="true">Temperature</button>
+      <button data-v="q" aria-pressed="false">Heat flux</button>
+      <button data-v="k" aria-pressed="false">kz</button></div></div>
+    <div class="ctl"><label>Show</label><div class="seg" id="modeSeg">
+      <button data-v="cond" aria-pressed="true">Conductors</button>
+      <button data-v="block" aria-pressed="false">Solid block</button></div></div>
+    <div class="ctl"><label>Vertical scale</label><div class="seg" id="zSeg">
+      <button data-v="true" aria-pressed="true">True</button>
+      <button data-v="schematic" aria-pressed="false">Schematic</button></div></div>
+    <div class="ctl"><label>Cutaway x <b id="cutxV"></b></label><input type="range" id="cutx" min="0" max="100" value="50"></div>
+    <div class="ctl"><label>Cutaway y <b id="cutyV"></b></label><input type="range" id="cuty" min="0" max="100" value="50"></div>
+    <div class="ctl"><label>Cutaway from height <b id="cutzV"></b></label><input type="range" id="cutz" min="0" max="100" value="0"></div>
+    <div class="ctl"><div class="seg"><button id="paths" aria-pressed="true">Heat-flow paths</button>
+      <button id="resetCam">Reset camera</button></div></div>
+  </aside>
+
+  <section class="stage">
+    <div class="canvasWrap" id="wrap">
+      <canvas id="gl"></canvas>
+      <div class="hud" id="hud"></div>
+      <div class="busy" id="busy">solving…</div>
+      <div class="scale"><span id="lo"></span><div class="ramp" id="ramp"></div><span id="hi"></span><span id="rampNote"></span></div>
+      <div class="hint">drag to rotate · scroll to zoom · right-drag to pan</div>
+    </div>
+    <div id="warn"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="card" id="dlCard" hidden><h2>Results for package-scale tools</h2>
+      <p class="note">Layer table (CSV), Ansys APDL material cards, the full result with provenance (JSON) and a standalone report.</p>
+      <div id="downloads"></div></div>
+    <div class="card" id="budgetCard" hidden><h2>What the total resistance rests on</h2>
+      <p class="note">Each class of input is raised by 10 % and the stack re-solved. Elasticity is the percent change in
+        total resistance per percent change of that input; the effect multiplies it by an assumed uncertainty for the
+        class. Read it as a ranking of which inputs to pin down first.</p>
+      <div class="scroll"><table id="budget"></table></div></div>
+    <div class="card"><h2>Layers</h2>
+      <p class="note">In-situ effective properties from the same solve. “kz mix” is the rule of mixtures for the layer on its own.</p>
+      <div class="scroll"><table id="layers"></table></div></div>
+    <div class="card"><h2>Material inputs computed for this cell</h2>
+      <div class="scroll"><table id="mats"></table></div></div>
+    <div class="card"><h2>Interface resistances</h2>
+      <div class="scroll"><table id="ifaces"></table></div></div>
+  </section>
+</main>
+
+<main id="pageMat" class="matgrid" hidden>
+  <aside class="panel">
+    <p class="blurb" style="margin-top:0">Every curve is computed by the Python engine when you move a slider:
+      surface and grain-boundary scattering for the metals, a phonon mean-free-path integral for silicon.</p>
+    <div class="ctl"><label>Temperature <b id="mTV"></b></label><input type="range" id="mT" min="200" max="500" step="10" value="300"></div>
+    <div class="ctl"><label>Surface specularity p <b id="mPV"></b></label><input type="range" id="mP" min="0" max="0.9" step="0.05" value="0"></div>
+    <div class="ctl"><label>Grain-boundary reflection R <b id="mRV"></b></label><input type="range" id="mR" min="0" max="0.8" step="0.05" value="0.3"></div>
+    <div class="ctl"><label>Line height / width <b id="mAV"></b></label><input type="range" id="mA" min="0.5" max="4" step="0.5" value="2"></div>
+  </aside>
+  <section class="stage">
+    <div class="card"><h2>Metal line conductivity against line width</h2>
+      <p class="note" id="metalNote"></p>
+      <div class="legend" id="metalLegend"></div><div class="chart" id="metalChart"></div>
+      <details><summary>Data table</summary><div class="scroll"><table id="metalTable"></table></div></details></div>
+    <div class="card"><h2>Silicon conductivity against thickness</h2>
+      <p class="note" id="siNote"></p>
+      <div class="legend" id="siLegend"></div><div class="chart" id="siChart"></div>
+      <details><summary>Data table</summary><div class="scroll"><table id="siTable"></table></div></details></div>
+    <div class="card"><h2>Interface conductance: measurement against the diffuse mismatch model</h2>
+      <p class="note">The library uses the measured column. The model column shows why a computed estimate is not trusted for weakly bonded metal/oxide interfaces.</p>
+      <div class="scroll"><table id="tbcTable"></table></div></div>
+  </section>
+</main>
+<main id="pageWig" class="matgrid" hidden>
+  <aside class="panel">
+    <p class="blurb" style="margin-top:0">Conductivity of amorphous SiO₂ computed from atoms, with no fitted transport
+      parameter. A 648-atom glass is quenched by molecular dynamics; its vibrational modes, the velocity
+      operator between them and their three-phonon linewidths go into the Wigner expression, in which heat
+      is carried by wave-like tunnelling between modes rather than by a phonon gas. The same force constants
+      are also run through kALDo, an established open-source package, as the reference backend.</p>
+    <h3>Atomic model</h3>
+    <div class="scroll"><table id="wigFacts"></table></div>
+    <h3>Limits</h3>
+    <p class="blurb">Classical pair potential (BKS), not first principles. One cell, quenched far faster than
+      real glass. Modes below the cell's lowest frequency are absent. Bulk glass only: no thin-film or
+      porosity effect yet.</p>
+  </aside>
+  <section class="stage">
+    <div class="tiles" id="wigTiles"></div>
+    <div class="card"><h2>Amorphous SiO₂: thermal conductivity against temperature</h2>
+      <p class="note" id="wigNote"></p>
+      <div class="legend" id="wigLegend"></div><div class="chart" id="wigChart"></div>
+      <details><summary>Data table</summary><div class="scroll"><table id="wigTable"></table></div></details></div>
+    <div class="card"><h2>Vibrational density of states</h2>
+      <p class="note">Share of modes per cm⁻¹, from the exact Hessian of the relaxed glass.</p>
+      <div class="chart" id="dosChart"></div></div>
+    <div class="card"><h2>Mode diffusivity at 300 K</h2>
+      <p class="note">How far each vibration spreads heat, mm²/s, averaged in 20 cm⁻¹ windows. It collapses at
+        high frequency, where modes localise.</p>
+      <div class="chart" id="diffChart"></div></div>
+    <div class="card"><h2>Three-phonon linewidths of the sampled modes</h2>
+      <p class="note">cm⁻¹ at 300 K, from cubic force constants obtained by finite differences of the Hessian along
+        each mode. Averaged in frequency before use.</p>
+      <div class="chart" id="gamChart"></div></div>
+  </section>
+</main>
+<div class="tip" id="tip"></div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const $ = (id) => document.getElementById(id);
+const cssv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const isDark = () => getComputedStyle(document.documentElement).colorScheme.includes('dark');
+const fmt = (v, n = 3) => (v === null || v === undefined || !isFinite(v)) ? '–'
+  : Number(v).toLocaleString('en-US', { maximumSignificantDigits: n });
+const el = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+
+// ------------------------------------------------------------------ colour ramp
+const RAMP = ['#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7', '#3987e5',
+  '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b']
+  .map((h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255));
+function ramp(t) {  // 0..1 -> rgb, high values far from the surface colour
+  t = Math.min(1, Math.max(0, t));
+  const u = (isDark() ? 1 - t : t) * (RAMP.length - 1), i = Math.min(RAMP.length - 2, Math.floor(u)), f = u - i;
+  return [0, 1, 2].map((c) => RAMP[i][c] + (RAMP[i + 1][c] - RAMP[i][c]) * f);
+}
+
+// ------------------------------------------------------------------ state
+let scenes = [], sceneId = null, S = null, seq = 0, timer = null;
+const values = {};
+const view = { field: 'T', mode: 'cond', zmode: 'true', cut: [0.5, 0.5, 0], paths: true };
+
+// ------------------------------------------------------------------ three.js
+const canvas = $('gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene3 = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.01, 100);
+camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.12;
+const root = new THREE.Group(); scene3.add(root);
+let mesh = null, ghost = null, frame = null, streaks = null, quadCell = null, A = null, P = null;
+
+function resize() {
+  const w = $('wrap').clientWidth, h = $('wrap').clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe($('wrap'));
+
+function axes() {  // display coordinates of the cell edges, lateral size normalised to 1
+  const g = S.grid, L = Math.max(g.xe[g.nx], g.ye[g.ny]);
+  const X = g.xe.map((v) => v / L), Y = g.ye.map((v) => v / L);
+  let Z;
+  if (view.zmode === 'true') Z = g.ze.map((v) => v / L);
+  else {  // every layer drawn with a height ~ thickness^0.4 so thin layers stay visible
+    const nl = g.layer_names.length, t = new Array(nl).fill(0);
+    for (let k = 0; k < g.nz; k++) t[g.layer[k]] += g.ze[k + 1] - g.ze[k];
+    const d = t.map((v) => Math.pow(v, 0.4)), sum = d.reduce((a, b) => a + b, 0);
+    const base = [], zb = []; let acc = 0, zacc = 0;
+    for (let l = 0; l < nl; l++) { base.push(acc); acc += d[l] / sum * 1.5; zb.push(zacc); zacc += t[l]; }
+    Z = [0];
+    for (let k = 0; k < g.nz; k++) { const l = g.layer[k]; Z.push(base[l] + (g.ze[k + 1] - zb[l]) / t[l] * (d[l] / sum * 1.5)); }
+  }
+  const sz = new Float32Array(g.nz);
+  for (let k = 0; k < g.nz; k++) sz[k] = L * (Z[k + 1] - Z[k]) / (g.ze[k + 1] - g.ze[k]);
+  return { X, Y, Z, sz, L, cx: X[g.nx] / 2, cy: Y[g.ny] / 2, cz: Z[g.nz] / 2 };
+}
+
+function fieldSpec() {
+  if (view.field === 'T') return { a: S.T, log: false, label: (v) => fmt(v, 6) + ' K' };
+  if (view.field === 'q') return { a: S.qmag, log: true, label: (v) => fmt(v / 1e4, 3) + ' W/cm²' };
+  return { a: S.kz, log: true, label: (v) => fmt(v, 3) + ' W/m/K' };
+}
+function fieldRange(spec) {
+  let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < spec.a.length; i++) { const v = spec.a[i]; if (v < lo) lo = v; if (v > hi) hi = v; }
+  if (spec.log) lo = Math.max(lo, hi * 1e-3);
+  return [lo, hi];
+}
+
+function dispose(obj) { if (!obj) return; root.remove(obj); obj.geometry.dispose(); obj.material.dispose(); }
+
+function buildMesh() {
+  if (!S) return;
+  const g = S.grid, nx = g.nx, ny = g.ny, nz = g.nz, n = nx * ny * nz;
+  A = axes();
+  const { X, Y, Z, cx, cy, cz } = A;
+  const spec = fieldSpec(), [lo, hi] = fieldRange(spec);
+  const span = spec.log ? Math.log(hi / lo) || 1 : (hi - lo) || 1;
+  const tOf = (v) => spec.log ? Math.log(Math.max(v, lo) / lo) / span : (v - lo) / span;
+  const cutI = Math.round(view.cut[0] * nx), cutJ = Math.round(view.cut[1] * ny), cutK = Math.round(view.cut[2] * nz);
+  const cond = view.mode === 'cond';
+  const vis = new Uint8Array(n);
+  for (let k = 0, idx = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++, idx++) {
+    let v = cond ? S.feature[idx] : 1;
+    if (!cond && i >= cutI && j < cutJ && k >= cutK) v = 0;
+    vis[idx] = v;
+  }
+  const pos = [], col = [], cells = [];
+  const SH = [0.88, 0.88, 0.94, 0.94, 1.0, 0.8];
+  const quad = (p, c, s, cell) => {
+    for (let q = 0; q < 12; q++) pos.push(p[q]);
+    for (let q = 0; q < 4; q++) col.push(c[0] * s, c[1] * s, c[2] * s);
+    cells.push(cell);
+  };
+  for (let k = 0, idx = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++, idx++) {
+    if (!vis[idx]) continue;
+    const c = ramp(tOf(spec.a[idx]));
+    const x0 = X[i] - cx, x1 = X[i + 1] - cx, y0 = Y[j] - cy, y1 = Y[j + 1] - cy, z0 = Z[k] - cz, z1 = Z[k + 1] - cz;
+    if (i === nx - 1 || !vis[idx + 1]) quad([x1, y0, z0, x1, y1, z0, x1, y1, z1, x1, y0, z1], c, SH[0], idx);
+    if (i === 0 || !vis[idx - 1]) quad([x0, y0, z0, x0, y1, z0, x0, y1, z1, x0, y0, z1], c, SH[1], idx);
+    if (j === ny - 1 || !vis[idx + nx]) quad([x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1], c, SH[2], idx);
+    if (j === 0 || !vis[idx - nx]) quad([x0, y0, z0, x1, y0, z0, x1, y0, z1, x0, y0, z1], c, SH[3], idx);
+    if (k === nz - 1 || !vis[idx + nx * ny]) quad([x0, y0, z1, x1, y0, z1, x1, y1, z1, x0, y1, z1], c, SH[4], idx);
+    if (k === 0 || !vis[idx - nx * ny]) quad([x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0], c, SH[5], idx);
+  }
+  const nq = cells.length, index = new Uint32Array(nq * 6);
+  for (let q = 0; q < nq; q++) index.set([4 * q, 4 * q + 1, 4 * q + 2, 4 * q, 4 * q + 2, 4 * q + 3], 6 * q);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(col), 3));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  dispose(mesh);
+  mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  root.add(mesh); quadCell = cells;
+
+  // translucent body and outlines of every layer boundary
+  dispose(ghost); dispose(frame);
+  const bx = X[nx], by = Y[ny], bz = Z[nz];
+  const box = new THREE.BoxGeometry(bx, by, bz);
+  ghost = new THREE.Mesh(box, new THREE.MeshBasicMaterial({ color: cssv('--ink-2'), transparent: true,
+    opacity: cond ? 0.07 : 0, depthWrite: false }));
+  root.add(ghost);
+  const lp = [];
+  const rect = (z) => { const a = [[-cx, -cy], [cx, -cy], [cx, cy], [-cx, cy]];
+    for (let e = 0; e < 4; e++) lp.push(a[e][0], a[e][1], z, a[(e + 1) % 4][0], a[(e + 1) % 4][1], z); };
+  rect(-cz); rect(cz);
+  for (let k = 1; k < nz; k++) if (g.layer[k] !== g.layer[k - 1]) rect(Z[k] - cz);
+  for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) lp.push(sx * cx, sy * cy, -cz, sx * cx, sy * cy, cz);
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(lp), 3));
+  frame = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: cssv('--muted'), transparent: true, opacity: 0.55 }));
+  root.add(frame);
+
+  $('lo').textContent = spec.label(lo); $('hi').textContent = spec.label(hi);
+  $('ramp').style.background = 'linear-gradient(90deg,' + [0, 0.25, 0.5, 0.75, 1].map((t) =>
+    `rgb(${ramp(t).map((c) => Math.round(c * 255)).join(',')}) ${t * 100}%`).join(',') + ')';
+  $('rampNote').textContent = spec.log ? '· log scale' : '';
+  renderer.setClearColor(new THREE.Color(cssv('--surface')));
+}
+
+function fitCamera() {
+  const r = 0.5 * Math.hypot(2 * A.cx, 2 * A.cy, 2 * A.cz);
+  const dist = r / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.05;
+  camera.position.set(dist * 0.62, -dist * 0.66, dist * 0.42);
+  controls.target.set(0, 0, 0); camera.near = dist / 100; camera.far = dist * 10; camera.updateProjectionMatrix();
+  controls.update();
+}
+
+// ------------------------------------------------------------------ heat-flow paths
+const NP = 1100;
+function find(arr, v) { let lo = 0, hi = arr.length - 2; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (arr[m] <= v) lo = m; else hi = m - 1; } return lo; }
+function spawn(p, n, anywhere) {
+  const g = S.grid, { X, Y, Z } = A, seed = S.operating.seed;
+  p.x[n] = Math.random() * X[g.nx]; p.y[n] = Math.random() * Y[g.ny];
+  if (seed) p.z[n] = Z[seed[0]] + Math.random() * (Z[seed[1]] - Z[seed[0]]);
+  else p.z[n] = anywhere ? Math.random() * Z[g.nz] : Z[0] + 1e-4 * Z[g.nz];
+  p.age[n] = anywhere ? Math.random() * 6 : 0;
+}
+function initPaths() {
+  dispose(streaks); streaks = null; P = null;
+  if (!S) return;
+  const g = S.grid, { sz } = A; let vmax = 0;
+  for (let k = 0, idx = 0; k < g.nz; k++) for (let m = 0; m < g.nx * g.ny; m++, idx++) {
+    const v = Math.hypot(S.qx[idx], S.qy[idx], S.qz[idx] * sz[k]); if (v > vmax) vmax = v;
+  }
+  if (!(vmax > 0)) return;
+  P = { x: new Float32Array(NP), y: new Float32Array(NP), z: new Float32Array(NP), age: new Float32Array(NP), vmax };
+  for (let n = 0; n < NP; n++) spawn(P, n, true);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(NP * 6), 3));
+  streaks = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: cssv('--ink'), transparent: true,
+    opacity: 0.7, depthTest: false }));
+  streaks.renderOrder = 5; streaks.visible = view.paths; root.add(streaks);
+}
+function stepPaths(dt) {
+  if (!P || !streaks || !view.paths) return;
+  const g = S.grid, { X, Y, Z, sz, cx, cy, cz } = A, nxy = g.nx * g.ny;
+  const lx = X[g.nx], ly = Y[g.ny], top = Z[g.nz], arr = streaks.geometry.attributes.position.array;
+  for (let n = 0; n < NP; n++) {
+    const i = find(X, P.x[n]), j = find(Y, P.y[n]), k = find(Z, P.z[n]), idx = k * nxy + j * g.nx + i;
+    const vx = S.qx[idx], vy = S.qy[idx], vz = S.qz[idx] * sz[k], mag = Math.hypot(vx, vy, vz);
+    P.age[n] += dt;
+    if (!(mag > 0) || P.age[n] > 9) { spawn(P, n, false); arr.fill(0, 6 * n, 6 * n + 6); continue; }
+    const speed = (0.1 + 0.9 * Math.sqrt(mag / P.vmax)) * 0.32, f = speed * dt / mag;
+    const ox = P.x[n], oy = P.y[n], oz = P.z[n];
+    P.x[n] += vx * f; P.y[n] += vy * f; P.z[n] += vz * f;
+    if (P.z[n] >= top || P.z[n] <= 0) { spawn(P, n, false); arr.fill(0, 6 * n, 6 * n + 6); continue; }
+    let wrapped = false;
+    if (P.x[n] < 0) { P.x[n] += lx; wrapped = true; } else if (P.x[n] >= lx) { P.x[n] -= lx; wrapped = true; }
+    if (P.y[n] < 0) { P.y[n] += ly; wrapped = true; } else if (P.y[n] >= ly) { P.y[n] -= ly; wrapped = true; }
+    const t = 9;  // streak length in steps
+    const tx = wrapped ? P.x[n] : ox - (P.x[n] - ox) * t, ty = wrapped ? P.y[n] : oy - (P.y[n] - oy) * t,
+      tz = wrapped ? P.z[n] : oz - (P.z[n] - oz) * t;
+    arr[6 * n] = P.x[n] - cx; arr[6 * n + 1] = P.y[n] - cy; arr[6 * n + 2] = P.z[n] - cz;
+    arr[6 * n + 3] = tx - cx; arr[6 * n + 4] = ty - cy; arr[6 * n + 5] = tz - cz;
+  }
+  streaks.geometry.attributes.position.needsUpdate = true;
+}
+
+const clock = new THREE.Clock();
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  stepPaths(dt); controls.update(); renderer.render(scene3, camera);
+}
+
+// ------------------------------------------------------------------ hover readout
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+canvas.addEventListener('pointermove', (ev) => {
+  if (!mesh || ev.buttons) return;
+  const r = canvas.getBoundingClientRect();
+  mouse.set((ev.clientX - r.left) / r.width * 2 - 1, -(ev.clientY - r.top) / r.height * 2 + 1);
+  ray.setFromCamera(mouse, camera);
+  const hit = ray.intersectObject(mesh, false)[0];
+  const hud = $('hud'); hud.textContent = '';
+  if (!hit) return;
+  const idx = quadCell[Math.floor(hit.faceIndex / 2)], g = S.grid, k = Math.floor(idx / (g.nx * g.ny));
+  hud.append(el('b', fmt(S.T[idx], 7) + ' K'), ` · ${fmt(S.qmag[idx] / 1e4, 3)} W/cm² · `
+    + `${S.materials[S.mat[idx]].material} in ${g.layer_names[g.layer[k]]} · kz ${fmt(S.kz[idx], 3)} W/m/K`);
+});
+canvas.addEventListener('pointerleave', () => { $('hud').textContent = ''; });
+
+// ------------------------------------------------------------------ data
+function bytes(b64) { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u; }
+const f32 = (b) => new Float32Array(bytes(b).buffer);
+
+function load(d, sceneChanged) {
+  const f = d.fields;
+  S = Object.assign(d, { T: f32(f.T), qx: f32(f.qx), qy: f32(f.qy), qz: f32(f.qz), kz: f32(f.kz),
+    feature: bytes(f.feature), mat: new Int16Array(bytes(f.mat).buffer) });
+  S.qmag = new Float32Array(S.T.length);
+  for (let i = 0; i < S.qmag.length; i++) S.qmag[i] = Math.hypot(S.qx[i], S.qy[i], S.qz[i]);
+  if (sceneChanged) { view.zmode = d.zmode; press('zSeg', view.zmode); }
+  buildMesh(); initPaths(); if (sceneChanged) fitCamera();
+  renderNumbers();
+}
+
+function renderNumbers() {
+  const e = S.effective, o = S.operating, b = S.bulk;
+  const over = b ? (b.kz / e.kz - 1) * 100 : 0;
+  const tiles = [
+    [fmt(e.kz), 'W/m/K', 'through-plane kz of the cell', b ? `bulk-property model: ${fmt(b.kz)} (${over >= 0 ? '+' : ''}${fmt(over, 2)} %)` : ''],
+    [fmt(e.kx) + ' / ' + fmt(e.ky), 'W/m/K', 'in-plane kx / ky', ''],
+    [fmt(e.R * 1e6, 4), 'mm²K/W', 'through-plane resistance', b ? `bulk-property model: ${fmt(b.R * 1e6, 4)}` : ''],
+    o.power ? [fmt(o.rise, 3), 'K', `hottest point above the coolant at ${fmt(o.flux / 1e4, 3)} W/cm²`, '']
+      : ['–', '', 'no heat source in this stack', S.field_note || ''],
+  ];
+  $('dlCard').hidden = !S.files; $('budgetCard').hidden = !S.budget;
+  if (S.files) {
+    const host = $('downloads'); host.textContent = '';
+    for (const [name, text] of Object.entries(S.files)) {
+      const a = el('a', name, 'dl'); a.download = name;
+      a.href = URL.createObjectURL(new Blob([text], { type: name.endsWith('.html') ? 'text/html' : 'text/plain' }));
+      host.append(a);
+    }
+  }
+  if (S.budget) {
+    table('budget', [['input class', (r) => r.label, 't'], ['elasticity', (r) => (r.elasticity >= 0 ? '+' : '') + fmt(r.elasticity, 2)],
+      ['assumed uncertainty', (r) => '± ' + fmt(r.assumed_uncertainty * 100, 2) + ' %'], ['effect on total', (r) => fmt(r.effect * 100, 2) + ' %']],
+      S.budget.rows.concat([{ label: 'combined, classes taken as independent', elasticity: NaN, assumed_uncertainty: NaN, effect: S.budget.combined }]));
+  }
+  if (o.seed && o.up !== null) tiles.push([fmt(o.up * 100, 3), '%', 'of the heat leaves through the top face', '']);
+  const host = $('tiles'); host.textContent = '';
+  for (const t of tiles) {
+    const d = el('div', undefined, 'tile'), v = el('div', t[0], 'v'); v.append(el('span', t[1], 'u'));
+    d.append(v, el('div', t[2], 'l')); if (t[3]) d.append(el('div', t[3], 's')); host.append(d);
+  }
+  $('status').textContent = `${S.grid.nx} × ${S.grid.ny} × ${S.grid.nz} cells · solved in ${fmt(S.seconds, 2)} s`;
+  const w = $('warn'); w.textContent = '';
+  for (const msg of S.warnings) w.append(el('div', 'Warning: ' + msg, 'warn'));
+  table('layers', [['layer', (r) => r.layer, 't'], ['t (nm)', (r) => fmt(r.thickness_m * 1e9, 4)],
+    ['kx', (r) => fmt(r.kx_W_mK)], ['ky', (r) => fmt(r.ky_W_mK)], ['kz', (r) => fmt(r.kz_W_mK)],
+    ['kz mix', (r) => fmt(r.kz_rule_of_mixtures_W_mK)], ['R (mm²K/W)', (r) => fmt(r.R_m2K_W * 1e6)],
+    ['R interface above', (r) => fmt(r.R_interface_above_m2K_W * 1e6)]], S.layers.slice().reverse());
+  table('mats', [['material', (r) => r.material, 't'], ['in', (r) => r.name.split(':')[0], 't'],
+    ['kx', (r) => fmt(r.kx)], ['ky', (r) => fmt(r.ky)], ['kz', (r) => fmt(r.kz)],
+    ['model', (r) => r.model, 't w']], S.materials_table || S.materials);
+  table('ifaces', [['between', (r) => r.a + ' · ' + r.b, 't'], ['face', (r) => r.face, 't'],
+    ['R (m²K/GW)', (r) => fmt(r.R * 1e9)], ['TBC (MW/m²K)', (r) => fmt(1e-6 / r.R)],
+    ['provenance', (r) => r.provenance, 't'], ['source', (r) => r.source || '', 't w']], S.interfaces);
+}
+
+function table(id, cols, rows) {
+  const t = $(id); t.textContent = '';
+  const hr = el('tr'); for (const c of cols) hr.append(el('th', c[0], c[2] || '')); t.append(hr);
+  for (const r of rows) { const tr = el('tr'); for (const c of cols) tr.append(el('td', String(c[1](r)), c[2] || '')); t.append(tr); }
+}
+
+async function solve(sceneChanged) {
+  const my = ++seq; $('busy').style.display = 'block';
+  try {
+    const res = await fetch('/api/solve', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scene: sceneId, values: values[sceneId] }) });
+    const d = await res.json();
+    if (my !== seq) return;
+    if (d.error) { $('status').textContent = 'Could not solve: ' + d.error; return; }
+    load(d, sceneChanged);
+  } catch (err) { if (my === seq) $('status').textContent = 'Server not reachable: ' + err.message; }
+  finally { if (my === seq) $('busy').style.display = 'none'; }
+}
+const later = (changed) => { clearTimeout(timer); timer = setTimeout(() => solve(changed), 180); };
+
+// ------------------------------------------------------------------ controls
+function press(segId, v) { for (const b of $(segId).children) b.setAttribute('aria-pressed', b.dataset.v === v); }
+function seg(segId, key, after) {
+  $(segId).addEventListener('click', (ev) => { const v = ev.target.dataset && ev.target.dataset.v; if (!v) return;
+    view[key] = v; press(segId, v); after(); });
+}
+seg('fieldSeg', 'field', buildMesh);
+seg('modeSeg', 'mode', buildMesh);
+seg('zSeg', 'zmode', () => { buildMesh(); initPaths(); fitCamera(); });
+for (const [id, n] of [['cutx', 0], ['cuty', 1], ['cutz', 2]]) {
+  const upd = () => { view.cut[n] = $(id).value / 100; $(id + 'V').textContent = $(id).value + ' %'; };
+  upd(); $(id).addEventListener('input', () => { upd(); if (view.mode !== 'block') { view.mode = 'block'; press('modeSeg', 'block'); } buildMesh(); });
+}
+$('paths').onclick = () => { view.paths = !view.paths; $('paths').setAttribute('aria-pressed', view.paths); if (streaks) streaks.visible = view.paths; };
+$('resetCam').onclick = fitCamera;
+
+function buildParams() {
+  const sc = scenes.find((s) => s.id === sceneId), host = $('params'); host.textContent = '';
+  $('blurb').textContent = sc.blurb;
+  for (const p of sc.params) {
+    const wrap = el('div', undefined, 'ctl'), lab = el('label', p.label), val = el('b');
+    lab.append(val); wrap.append(lab);
+    if (p.kind === 'range') {
+      const inp = el('input'); inp.type = 'range'; inp.min = p.min; inp.max = p.max; inp.step = p.step; inp.value = values[sceneId][p.key];
+      const show = () => { val.textContent = fmt(+inp.value, 4) + (p.unit ? ' ' + p.unit : ''); };
+      show(); inp.addEventListener('input', () => { values[sceneId][p.key] = +inp.value; show(); later(false); });
+      wrap.append(inp);
+    } else {
+      const s = el('select');
+      for (const o of p.options) { const op = el('option', Array.isArray(o) ? o[1] : o); op.value = Array.isArray(o) ? o[0] : o; s.append(op); }
+      s.value = values[sceneId][p.key];
+      s.addEventListener('change', () => { values[sceneId][p.key] = s.value; later(false); });
+      wrap.append(s);
+    }
+    host.append(wrap);
+  }
+}
+let EX = null, customText = '';
+async function buildCustom() {
+  const host = $('params'); host.textContent = '';
+  $('blurb').textContent = 'Paste or edit a stack file and run it through the full solver: sub-stacks, layer table, '
+    + 'temperature field and export files.';
+  if (!EX) EX = await (await fetch('/api/examples')).json();
+  const names = Object.keys(EX), row = el('div', undefined, 'row'), pick = el('select');
+  for (const n of names) { const o = el('option', n); o.value = n; pick.append(o); }
+  const area = el('textarea', undefined, 'yaml'); area.spellcheck = false;
+  area.value = customText || (names.length ? EX[names[0]] : 'name: my-stack\ncell: [1 um, 1 um]\nlayers:\n  - {name: si, type: film, material: Si, thickness: 10 um}\n');
+  area.addEventListener('input', () => { customText = area.value; });
+  pick.addEventListener('change', () => { area.value = EX[pick.value]; customText = area.value; });
+  if (names.length) { row.append('example', pick); host.append(row); }
+  host.append(area);
+  const row2 = el('div', undefined, 'row'), run = el('button', 'Run', 'primary'), cb = el('input'), lab = el('label');
+  cb.type = 'checkbox'; lab.append(cb, ' error budget (about 8× slower)'); row2.append(run, lab); host.append(row2);
+  run.onclick = async () => {
+    const my = ++seq; $('busy').style.display = 'block'; $('status').textContent = 'solving…'; customText = area.value;
+    try {
+      const res = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ yaml: area.value, budget: cb.checked }) });
+      const d = await res.json();
+      if (my !== seq) return;
+      if (d.error) { $('status').textContent = 'Could not run: ' + d.error; return; }
+      load(d, true);
+    } catch (err) { if (my === seq) $('status').textContent = 'Server not reachable: ' + err.message; }
+    finally { if (my === seq) $('busy').style.display = 'none'; }
+  };
+}
+function pickScene(id) {
+  sceneId = id; for (const b of $('scenes').children) b.setAttribute('aria-pressed', b.dataset.v === id);
+  if (id === 'custom') { seq++; buildCustom(); $('status').textContent = 'Edit the stack file and press Run'; return; }
+  buildParams(); solve(true);
+}
+
+// ------------------------------------------------------------------ materials engine tab
+const tip = $('tip');
+function lineChart(host, cfg) {
+  host.textContent = '';
+  const W = Math.max(320, host.clientWidth), H = 300, m = { l: 46, r: 96, t: 10, b: 34 };
+  const ns = 'http://www.w3.org/2000/svg', svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H);
+  const mk = (tag, attrs, parent = svg) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.append(e); return e; };
+  const fx = cfg.linear ? (v) => v : Math.log10;
+  const xfmt = cfg.xfmt || ((v) => v >= 1000 ? fmt(v / 1000) + ' µm' : fmt(v) + ' nm');
+  const x0 = fx(cfg.x[0]), x1 = fx(cfg.x[cfg.x.length - 1]);
+  let ymax = 0; for (const s of cfg.series) for (const v of s.y) if (v !== null) ymax = Math.max(ymax, v);
+  for (const p of cfg.points || []) ymax = Math.max(ymax, p.y + (p.err || 0));
+  const step = Math.pow(10, Math.floor(Math.log10(ymax / 4))), nice = [1, 2, 2.5, 5, 10].map((f) => f * step).find((s) => ymax / s <= 5);
+  ymax = Math.ceil(ymax / nice) * nice;
+  const sx = (v) => m.l + (fx(v) - x0) / (x1 - x0) * (W - m.l - m.r), sy = (v) => H - m.b - v / ymax * (H - m.t - m.b);
+  for (let v = 0; v <= ymax + 1e-9; v += nice) {
+    mk('line', { x1: m.l, x2: W - m.r, y1: sy(v), y2: sy(v), stroke: v === 0 ? 'var(--axis)' : 'var(--grid)', 'stroke-width': 1 });
+    mk('text', { x: m.l - 8, y: sy(v) + 4, 'text-anchor': 'end', fill: 'var(--muted)', 'font-size': 11.5 }).textContent = fmt(v, 4);
+  }
+  const xt = [];
+  if (cfg.linear) {
+    const raw = (x1 - x0) / 6, p10 = Math.pow(10, Math.floor(Math.log10(raw))), st = [1, 2, 5, 10].map((f) => f * p10).find((s) => s >= raw);
+    for (let v = Math.ceil(x0 / st) * st; v <= x1 + 1e-9; v += st) xt.push(v);
+  } else for (let e = Math.ceil(x0); e <= Math.floor(x1); e++) xt.push(Math.pow(10, e));
+  for (const v of xt) {
+    mk('line', { x1: sx(v), x2: sx(v), y1: H - m.b, y2: H - m.b + 4, stroke: 'var(--axis)' });
+    mk('text', { x: sx(v), y: H - m.b + 17, 'text-anchor': 'middle', fill: 'var(--muted)', 'font-size': 11.5 }).textContent = xfmt(v);
+  }
+  mk('text', { x: (m.l + W - m.r) / 2, y: H - 2, 'text-anchor': 'middle', fill: 'var(--ink-2)', 'font-size': 11.5 }).textContent = cfg.xlabel;
+  for (const p of cfg.points || []) {
+    if (p.err) mk('line', { x1: sx(p.x), x2: sx(p.x), y1: sy(p.y - p.err), y2: sy(p.y + p.err), stroke: 'var(--ink-2)', 'stroke-width': 1 });
+    const c = mk('circle', { cx: sx(p.x), cy: sy(p.y), r: 4, fill: p.hollow ? 'var(--surface)' : 'var(--ink)', stroke: 'var(--ink)', 'stroke-width': 1.5 });
+    const hitc = mk('circle', { cx: sx(p.x), cy: sy(p.y), r: 12, fill: 'transparent' });
+    hitc.addEventListener('pointermove', (ev) => { ev.stopPropagation(); showTip(ev, p.head, [[null, p.value, p.label]]); c.setAttribute('r', 5); });
+    hitc.addEventListener('pointerleave', () => { tip.style.display = 'none'; c.setAttribute('r', 4); });
+  }
+  const ends = [];
+  for (const s of cfg.series) {
+    let d = '', pen = false;
+    s.y.forEach((v, i) => { if (v === null) { pen = false; return; } d += (pen ? 'L' : 'M') + sx(cfg.x[i]).toFixed(1) + ' ' + sy(v).toFixed(1); pen = true; });
+    mk('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+    const last = s.y.filter((v) => v !== null).pop();
+    if (cfg.series.length > 1) ends.push({ y: sy(last), name: s.name, color: s.color });
+  }
+  ends.sort((a, b) => a.y - b.y);
+  for (let i = 1; i < ends.length; i++) if (ends[i].y - ends[i - 1].y < 14) ends[i].y = ends[i - 1].y + 14;
+  for (const e of ends) {
+    mk('line', { x1: W - m.r + 6, x2: W - m.r + 18, y1: e.y, y2: e.y, stroke: e.color, 'stroke-width': 2 });
+    mk('text', { x: W - m.r + 22, y: e.y + 4, fill: 'var(--ink-2)', 'font-size': 11.5 }).textContent = e.name;
+  }
+  const hair = mk('line', { y1: m.t, y2: H - m.b, stroke: 'var(--axis)', 'stroke-width': 1, visibility: 'hidden' });
+  const hit = mk('rect', { x: m.l, y: m.t, width: W - m.l - m.r, height: H - m.t - m.b, fill: 'transparent' });
+  svg.insertBefore(hit, svg.firstChild);
+  hit.addEventListener('pointermove', (ev) => {
+    const r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) / r.width * W;
+    const lx = x0 + (px - m.l) / (W - m.l - m.r) * (x1 - x0);
+    let best = 0; for (let i = 1; i < cfg.x.length; i++) if (Math.abs(fx(cfg.x[i]) - lx) < Math.abs(fx(cfg.x[best]) - lx)) best = i;
+    hair.setAttribute('x1', sx(cfg.x[best])); hair.setAttribute('x2', sx(cfg.x[best])); hair.setAttribute('visibility', 'visible');
+    showTip(ev, cfg.head ? cfg.head(cfg.x[best]) : xfmt(cfg.x[best]), cfg.series.map((s) => [s.color, fmt(s.y[best], 3), s.name]));
+  });
+  hit.addEventListener('pointerleave', () => { hair.setAttribute('visibility', 'hidden'); tip.style.display = 'none'; });
+  host.append(svg);
+}
+function showTip(ev, head, rows) {
+  tip.textContent = ''; tip.append(el('div', head, 'h'));
+  for (const [color, value, name] of rows) {
+    const r = el('div', undefined, 'r'), key = el('i'); if (color) key.style.borderColor = color; else key.style.borderColor = 'transparent';
+    r.append(key, el('b', value), el('span', name)); tip.append(r);
+  }
+  tip.style.display = 'block';
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + tip.offsetWidth > innerWidth - 8) x = ev.clientX - tip.offsetWidth - 14;
+  if (y + tip.offsetHeight > innerHeight - 8) y = ev.clientY - tip.offsetHeight - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+function legend(id, items) {
+  const host = $(id); host.textContent = '';
+  for (const [color, name, dot] of items) { const s = el('span'), i = el('i', undefined, dot ? 'dot' : ''); if (!dot) i.style.borderColor = color; s.append(i, name); host.append(s); }
+}
+let matTimer = null, matSeq = 0, M = null;
+async function loadMaterials() {
+  const my = ++matSeq, q = `T=${$('mT').value}&p=${$('mP').value}&R=${$('mR').value}&ar=${$('mA').value}`;
+  const d = await (await fetch('/api/materials?' + q)).json();
+  if (my !== matSeq || d.error) return;
+  M = d; drawMaterials();
+}
+function drawMaterials() {
+  if (!M || $('pageMat').hidden) return;
+  const colors = ['var(--s1)', 'var(--s2)', 'var(--s3)', 'var(--s4)'];
+  const ms = M.metals.map((x, i) => ({ name: x.name, color: colors[i], y: x.k }));
+  legend('metalLegend', ms.map((s) => [s.color, s.name]));
+  lineChart($('metalChart'), { x: M.widths_nm, series: ms, xlabel: 'line width' });
+  $('metalNote').textContent = `W/m/K at ${fmt(M.T, 4)} K. Bulk values: ` + M.metals.map((x) => `${x.name} ${fmt(x.bulk)}`).join(', ')
+    + '. Electron mean free paths: ' + M.metals.map((x) => `${x.name} ${fmt(x.mfp_nm, 2)} nm`).join(', ')
+    + '. Copper loses most because its mean free path is the longest.';
+  const pick = [5, 10, 16, 20, 30, 50, 100, 200, 500, 1000].map((w) => M.widths_nm.reduce((b, v, i) => Math.abs(v - w) < Math.abs(M.widths_nm[b] - w) ? i : b, 0));
+  table('metalTable', [['width (nm)', (i) => fmt(M.widths_nm[i], 3)]].concat(M.metals.map((x) => [x.name, (i) => fmt(x.k[i])])), pick);
+  const si = M.silicon, at300 = Math.abs(M.T - 300) < 1;
+  const ss = [{ name: 'film, in-plane', color: colors[0], y: si.in_plane }, { name: 'film, cross-plane', color: colors[1], y: si.cross_plane },
+    { name: 'square fin', color: colors[2], y: si.fin }];
+  legend('siLegend', ss.map((s) => [s.color, s.name]).concat(at300 ? [[null, 'published measurements, in-plane (hover for source)', true]] : []));
+  lineChart($('siChart'), { x: M.thickness_nm, series: ss, xlabel: 'film thickness or fin width',
+    points: at300 ? si.points.map((p) => ({ x: p.d_nm, y: p.k, err: p.err, hollow: true, head: `${fmt(p.d_nm, 4)} nm · measured`,
+      value: `${fmt(p.k)} ± ${fmt(p.err, 2)} W/m/K`, label: p.source + (p.how === 'figure' ? ' (read from figure)' : '') })) : [] });
+  $('siNote').textContent = `W/m/K at ${fmt(M.T, 4)} K; bulk ${fmt(si.bulk)}. The model is calibrated on the bulk curve only. `
+    + (at300 ? 'Measured points are overlaid; the early SOI data (Ju & Goodson) sit above later membrane measurements.'
+      : 'Published measurements are at 300 K: set the temperature to 300 K to overlay them.');
+  const pk = [5, 10, 20, 50, 100, 200, 500, 1000, 5000, 10000].map((w) => M.thickness_nm.reduce((b, v, i) => Math.abs(v - w) < Math.abs(M.thickness_nm[b] - w) ? i : b, 0));
+  table('siTable', [['size (nm)', (i) => fmt(M.thickness_nm[i], 3)], ['film in-plane', (i) => fmt(si.in_plane[i])],
+    ['film cross-plane', (i) => fmt(si.cross_plane[i])], ['square fin', (i) => fmt(si.fin[i])]], pk);
+  table('tbcTable', [['interface', (r) => r.pair, 't'], ['measured (MW/m²K)', (r) => (r.bound === 'lower' ? '≥ ' : '') + fmt(r.measured) + (r.err ? ' ± ' + fmt(r.err) : '')],
+    ['diffuse mismatch model', (r) => r.dmm ? fmt(r.dmm) : '–'], ['source', (r) => r.source, 't w']], M.interfaces);
+}
+for (const [id, unit] of [['mT', ' K'], ['mP', ''], ['mR', ''], ['mA', '']]) {
+  const upd = () => { $(id + 'V').textContent = $(id).value + unit; };
+  upd(); $(id).addEventListener('input', () => { upd(); clearTimeout(matTimer); matTimer = setTimeout(loadMaterials, 160); });
+}
+
+let Wg = null;
+function drawWigner() {
+  if (!Wg || $('pageWig').hidden) return;
+  const r = Wg.result, st = r.structure, T = r.temperatures.map((x) => x.T), cm = (v) => fmt(v, 4) + ' cm⁻¹';
+  const k300 = r.temperatures.find((x) => x.T === 300), ref300 = Wg.reference.find((x) => x.T === 300 && x.verified);
+  const pct = (v) => (v >= 0 ? '+' : '') + fmt(v * 100, 2) + ' %';
+  const tiles = [[fmt(ref300 ? ref300.library : k300.k_wigner, 3), 'W/m/K', 'used by the solver at 300 K',
+      ref300 ? `measured ${fmt(ref300.measured, 3)} (${pct(ref300.library_deviation)}) · ${Wg.library_source || ''}` : ''],
+    [fmt(k300.k_wigner, 3), 'W/m/K', 'native engine, first sample, 300 K', ref300 ? pct(ref300.deviation) + ' against measured' : ''],
+    [fmt(k300.k_allen_feldman, 3), 'W/m/K', 'harmonic limit at 300 K', 'no anharmonic linewidths'],
+    [fmt(k300.mean_linewidth_cm, 3), 'cm⁻¹', 'mean linewidth at 300 K', ''],
+    [String(r.modes), '', 'vibrational modes', `${fmt(r.lowest_mode_cm, 3)} to ${fmt(r.highest_mode_cm, 4)} cm⁻¹`]];
+  const host = $('wigTiles'); host.textContent = '';
+  for (const t of tiles) { const d = el('div', undefined, 'tile'), v = el('div', t[0], 'v'); v.append(el('span', t[1], 'u'));
+    d.append(v, el('div', t[2], 'l')); if (t[3]) d.append(el('div', t[3], 's')); host.append(d); }
+  table('wigFacts', [['', (x) => x[0], 't'], ['', (x) => x[1]]], [['atoms', st.atoms], ['density', fmt(st.density_g_cm3, 3) + ' g/cm³'],
+    ['cell edge', fmt(st.box_A, 4) + ' Å'], ['quench rate', Number(st.quench_rate_K_per_s).toExponential(1) + ' K/s'],
+    ['Si four-fold', fmt(st.si_four_fold * 100, 4) + ' %'], ['O two-fold', fmt(st.o_two_fold * 100, 4) + ' %'],
+    ['Si–O bond', fmt(st.si_o_bond, 4) + ' Å'], ['residual force', Number(st.max_force_eV_A).toExponential(1) + ' eV/Å']]);
+  const ser = [{ name: 'Wigner, native', color: 'var(--s1)', y: r.temperatures.map((x) => x.k_wigner) },
+    { name: 'harmonic limit', color: 'var(--s2)', y: r.temperatures.map((x) => x.k_allen_feldman) }];
+  if (Wg.kaldo) {
+    const kk = Object.fromEntries(Wg.kaldo.temperatures.map((x) => [x.T, x.k_wigner]));
+    ser.push({ name: 'kALDo', color: 'var(--s3)', y: T.map((t) => (t in kk ? kk[t] : null)) });
+  }
+  legend('wigLegend', ser.map((s) => [s.color, s.name]).concat([[null, 'measured (filled) and recalled handbook values (open)', true]]));
+  lineChart($('wigChart'), { x: T, series: ser, linear: true, xfmt: (v) => fmt(v, 4) + ' K', xlabel: 'temperature',
+    points: Wg.reference.map((p) => ({ x: p.T, y: p.measured, hollow: !p.verified, head: fmt(p.T, 4) + ' K',
+      value: fmt(p.measured, 3) + ' W/m/K', label: p.verified ? 'measured, bulk vitreous silica' : 'handbook value, recalled and not re-fetched' })) });
+  $('wigNote').textContent = 'W/m/K. “Wigner, native” is this package’s implementation with three-phonon linewidths; “kALDo” is the '
+    + 'quasi-harmonic Green–Kubo method of the kALDo package on the same force constants; “harmonic limit” sets the linewidths to zero. '
+    + (Wg.samples && Wg.samples.length > 1 ? 'Independent glass samples at 300 K: ' + Wg.samples.map((x) => fmt(x.k300, 4)).join(', ') + ' W/m/K. ' : '')
+    + 'Only the 300 K measurement was verified against a source for this work.';
+  table('wigTable', [['T (K)', (x) => fmt(x.T, 4)], ['Wigner', (x) => fmt(x.k_wigner, 4)], ['harmonic limit', (x) => fmt(x.k_allen_feldman, 4)],
+    ['mean linewidth (cm⁻¹)', (x) => fmt(x.mean_linewidth_cm, 3)]], r.temperatures);
+  lineChart($('dosChart'), { x: r.vdos.frequency_cm, series: [{ name: 'density of states', color: 'var(--s1)', y: r.vdos.density.map((v) => v * 1000) }],
+    linear: true, xfmt: cm, xlabel: 'frequency (y: modes per 1000 cm⁻¹)' });
+  lineChart($('diffChart'), { x: r.diffusivity_300.frequency_cm, series: [{ name: 'diffusivity', color: 'var(--s1)', y: r.diffusivity_300.mm2_per_s }],
+    linear: true, xfmt: cm, xlabel: 'frequency' });
+  const ls = r.linewidth_samples, i300 = ls.T.indexOf(300);
+  lineChart($('gamChart'), { x: ls.frequency_cm, series: [{ name: 'linewidth', color: 'var(--s1)', y: ls.gamma_cm[i300] }],
+    linear: true, xfmt: cm, xlabel: 'frequency' });
+}
+async function loadWigner() {
+  const d = await (await fetch('/api/wigner')).json();
+  if (d.error) { $('wigNote').textContent = 'Not available: ' + d.error; return; }
+  Wg = d; drawWigner();
+}
+function tab(which) {
+  $('page3d').hidden = which !== '3d'; $('pageMat').hidden = which !== 'mat'; $('pageWig').hidden = which !== 'wig';
+  $('tab3d').setAttribute('aria-selected', which === '3d'); $('tabMat').setAttribute('aria-selected', which === 'mat');
+  $('tabWig').setAttribute('aria-selected', which === 'wig');
+  if (which === 'mat') { if (M) drawMaterials(); else loadMaterials(); }
+  else if (which === 'wig') { if (Wg) drawWigner(); else loadWigner(); }
+  else resize();
+}
+$('tab3d').onclick = () => tab('3d'); $('tabMat').onclick = () => tab('mat'); $('tabWig').onclick = () => tab('wig');
+addEventListener('resize', () => { drawMaterials(); drawWigner(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { buildMesh(); initPaths(); drawMaterials(); drawWigner(); });
+
+// ------------------------------------------------------------------ start
+(async function start() {
+  scenes = await (await fetch('/api/scenes')).json();
+  for (const s of scenes) {
+    values[s.id] = {}; for (const p of s.params) values[s.id][p.key] = p.value;
+    const b = el('button', s.title); b.dataset.v = s.id; b.setAttribute('aria-pressed', 'false'); b.onclick = () => pickScene(s.id);
+    $('scenes').append(b);
+  }
+  const own = el('button', 'Your stack'); own.dataset.v = 'custom'; own.setAttribute('aria-pressed', 'false');
+  own.onclick = () => pickScene('custom'); $('scenes').append(own);
+  resize(); tick(); pickScene(scenes[0].id);
+})();
+</script>
+</body>
+</html>

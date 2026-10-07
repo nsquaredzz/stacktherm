@@ -1,0 +1,80 @@
+# Two logic dies bonded face to face with Cu/SiO2 hybrid bonding at 1 um pitch.
+# The unit cell is one bond pad.  Transistor and wiring levels are far finer than
+# the pad, so each is characterised in its own nanometre-scale cell (substack)
+# and enters this cell as an anisotropic layer.  Dimensions are illustrative of
+# an advanced node, not a specific process.
+
+name: hybrid-bond-1um
+cell: [1 um, 1 um]
+temperature: 358 K            # material models are evaluated here
+resolution: {n_xy: 40, n_z: 4}
+
+boundary:
+  top: {type: convection, h: 5.0e4, T: 318 K}   # cold plate on the top die
+  bottom: {type: adiabatic}
+
+interfaces:
+  "W|SiO2": 100 MW/m2K          # assumed, same as the library default
+
+definitions:
+  # transistor tier: Si fins in oxide, W contacts above; cell = gate pitch x fin pitch
+  feol: &feol
+    type: substack
+    cell: [48 nm, 24 nm]
+    layers:
+      - {name: fins, type: lines, material: Si, matrix: SiO2, width: 7 nm, pitch: 24 nm,
+         direction: x, thickness: 50 nm, heat: {flux: 50 W/cm2}}
+      - {name: contacts, type: posts, material: W, matrix: SiO2, size: 14 nm,
+         thickness: 40 nm, barrier: {thickness: 2 nm}}
+
+  # tight-pitch wiring: 16 nm lines at 32 nm pitch, one via per 64 nm cell (6 % via area).
+  # Via offsets (fractions of the cell) put each via on a crossing of the lines below and above.
+  beol_fine: &beol_fine
+    type: substack
+    cell: [64 nm, 64 nm]
+    layers:
+      - {name: M1, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: x, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V1, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.25,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: M2, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: y, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V2, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.75,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: M3, type: lines, material: Cu, matrix: SiCOH, width: 16 nm, pitch: 32 nm,
+         direction: x, thickness: 32 nm, barrier: {thickness: 2 nm}}
+      - {name: V3, type: posts, material: Cu, matrix: SiCOH, size: 16 nm, offset: 0.25,
+         thickness: 32 nm, barrier: {thickness: 2 nm}}
+
+  # relaxed-pitch wiring: 40 nm lines at 80 nm pitch
+  beol_coarse: &beol_coarse
+    type: substack
+    cell: [160 nm, 160 nm]
+    layers:
+      - {name: M4, type: lines, material: Cu, matrix: SiCOH, width: 40 nm, pitch: 80 nm,
+         direction: y, thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: V4, type: posts, material: Cu, matrix: SiCOH, size: 40 nm, offset: 0.25,
+         thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: M5, type: lines, material: Cu, matrix: SiCOH, width: 40 nm, pitch: 80 nm,
+         direction: x, thickness: 80 nm, barrier: {thickness: 3 nm}}
+      - {name: V5, type: posts, material: Cu, matrix: SiCOH, size: 40 nm, offset: 0.75,
+         thickness: 80 nm, barrier: {thickness: 3 nm}}
+
+layers:   # bottom to top
+  - {name: si-bottom, type: film, material: Si, thickness: 10 um}
+  - {<<: *feol, name: feol-b}
+  - {<<: *beol_fine, name: beol-fine-b}
+  - {<<: *beol_coarse, name: beol-coarse-b}
+  - {name: pad-b, type: posts, material: Cu, matrix: SiO2, size: 500 nm, thickness: 500 nm,
+     barrier: {thickness: 5 nm}}
+  - type: interface
+    name: bond
+    pairs:
+      "SiO2|SiO2": 150 MW/m2K    # lower limit measured by Zhang et al., arXiv:2601.03106
+      "Cu|Cu": 1000 MW/m2K       # assumed: no measurement in the library
+  - {name: pad-t, type: posts, material: Cu, matrix: SiO2, size: 500 nm, thickness: 500 nm,
+     barrier: {thickness: 5 nm}, inverted: true}
+  - {<<: *beol_coarse, name: beol-coarse-t, flip: true}
+  - {<<: *beol_fine, name: beol-fine-t, flip: true}
+  - {<<: *feol, name: feol-t, flip: true}
+  - {name: si-top, type: film, material: Si, thickness: 10 um}

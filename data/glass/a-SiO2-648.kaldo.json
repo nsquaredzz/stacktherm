@@ -1,0 +1,94 @@
+{
+ "name": "a-SiO2-648",
+ "backend": "kaldo",
+ "structure": {
+  "atoms": 648,
+  "box_A": 21.396712841448256,
+  "density_g_cm3": 2.2000000000000015,
+  "energy_eV_per_atom": -15.097044735797517,
+  "max_force_eV_A": 1.509903313490213e-13,
+  "melt_K": 6000.0,
+  "melt_ps": 8.0,
+  "quench_ps": 60.0,
+  "quench_rate_K_per_s": 95000000000000.0,
+  "seed": 1,
+  "si_four_fold": 1.0,
+  "o_two_fold": 0.9907407407407407,
+  "si_o_bond": 1.611443274073723,
+  "si_o_bond_std": 0.019557940740802346
+ },
+ "third_cutoff_A": 6.0,
+ "temperatures": [
+  {
+   "T": 50.0,
+   "k_wigner": 0.10629254579544067,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 1.7502428729215491
+  },
+  {
+   "T": 100.0,
+   "k_wigner": 0.4179699122905731,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 2.2314951504501495
+  },
+  {
+   "T": 150.0,
+   "k_wigner": 0.7135823369026184,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 2.876418335857055
+  },
+  {
+   "T": 200.0,
+   "k_wigner": 0.9616010785102844,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 3.6046386692092955
+  },
+  {
+   "T": 250.0,
+   "k_wigner": 1.1606396436691284,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 4.378977255072379
+  },
+  {
+   "T": 300.0,
+   "k_wigner": 1.316367506980896,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 5.179954731522634
+  },
+  {
+   "T": 350.0,
+   "k_wigner": 1.4370231628417969,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 5.996808307069988
+  },
+  {
+   "T": 400.0,
+   "k_wigner": 1.530535101890564,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 6.823399886052477
+  },
+  {
+   "T": 500.0,
+   "k_wigner": 1.6606849431991577,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 8.492847958656053
+  },
+  {
+   "T": 600.0,
+   "k_wigner": 1.7423425912857056,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 10.173371201456181
+  },
+  {
+   "T": 800.0,
+   "k_wigner": 1.830377221107483,
+   "k_allen_feldman": null,
+   "mean_linewidth_cm": 13.547484991278747
+  }
+ ],
+ "modes": 1941,
+ "atoms": 648,
+ "density_g_cm3": 2.200000000000001,
+ "lowest_mode_cm": 33.379476991293885,
+ "highest_mode_cm": 1293.0939818586876
+}
